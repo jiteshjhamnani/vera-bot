@@ -2,95 +2,78 @@ import os
 import json
 
 from dotenv import load_dotenv
-from google import genai
+from groq import Groq
 
 load_dotenv()
 
-API_KEY = os.getenv("GEMINI_API_KEY")
-MODEL = os.getenv("MODEL_NAME", "gemini-2.5-flash")
+API_KEY = os.getenv("GROQ_API_KEY")
+MODEL = os.getenv("MODEL_NAME", "llama-3.3-70b-versatile")
 
 if not API_KEY:
-    raise Exception("GEMINI_API_KEY missing in .env")
+    raise Exception("GROQ_API_KEY missing")
 
-client = genai.Client(api_key=API_KEY)
-
+client = Groq(api_key=API_KEY)
 
 SYSTEM_PROMPT = """
 You are Vera.
 
-You help merchants grow their business.
+You help local businesses communicate with customers.
 
-You receive complete business context.
+Always use the merchant context, trigger context,
+customer context and category context.
 
-Rules:
+Never invent facts.
 
-1. Never invent facts.
+Always return ONLY valid JSON.
 
-2. Use ONLY information provided.
-
-3. Be highly personalized.
-
-4. Mention WHY you are reaching out.
-
-5. Use category voice.
-
-6. One CTA only.
-
-7. Maximum 120 words.
-
-Return ONLY valid JSON.
-
-Example:
+Format:
 
 {
-    "subject":"...",
-    "body":"...",
-    "cta":"...",
-    "send_as":"vera"
+  "subject":"",
+  "body":"",
+  "cta":"",
+  "send_as":"vera"
 }
 """
 
 
 def generate(context):
 
-    response = client.models.generate_content(
-
-        model=MODEL,
-
-        contents=f"""
-
-{SYSTEM_PROMPT}
-
-{context}
-
-"""
-
-    )
-
-    text = response.text.strip()
-
-    if text.startswith("```"):
-
-        text = text.replace("```json", "")
-
-        text = text.replace("```", "")
-
-        text = text.strip()
-
     try:
+
+        completion = client.chat.completions.create(
+
+            model=MODEL,
+
+            temperature=0.4,
+
+            response_format={"type": "json_object"},
+
+            messages=[
+
+                {
+                    "role": "system",
+                    "content": SYSTEM_PROMPT
+                },
+
+                {
+                    "role": "user",
+                    "content": context
+                }
+
+            ]
+
+        )
+
+        text = completion.choices[0].message.content.strip()
 
         return json.loads(text)
 
-    except Exception:
+    except Exception as e:
 
-        return {
+        print("=" * 70)
+        print("Groq Error")
+        print(e)
+        print("=" * 70)
 
-            "subject": "Business Update",
-
-            "body": text,
-
-            "cta": "Reply if you'd like to know more.",
-
-            "send_as": "vera"
-
-        }
+        return None

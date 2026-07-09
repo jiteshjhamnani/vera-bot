@@ -108,7 +108,28 @@ class Composer:
 
         )
 
-        result = generate(prompt)
+        try:
+            print("Calling Gemini for trigger:", trigger["id"])
+
+            result = generate(prompt)
+
+            if result is None:
+                
+                return None
+
+            print("Gemini success")
+
+        except Exception as e:
+
+            import traceback
+
+            print("=" * 60)
+            print("GEMINI ERROR")
+            print(e)
+            traceback.print_exc()
+            print("=" * 60)
+
+            return None
 
         conversation_id = (
 
@@ -124,14 +145,16 @@ class Composer:
 
         )
 
+        body = result.get("body")
+
+        if not body:
+            print("No body returned from Gemini")
+            return None
+
         self.store.add_message(
-
             conversation_id,
-
             "assistant",
-
-            result["body"]
-
+            body
         )
 
         return {
@@ -153,7 +176,7 @@ class Composer:
 
         "template_params": [],
 
-        "body": result["body"],
+        "body": body,
 
         "cta": "open_ended",
 
